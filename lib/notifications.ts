@@ -3,6 +3,7 @@
 import nodemailer from "nodemailer"
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { formatFileSize } from "@/lib/client-utils";
 
 // Configure email transporter
 const transporter = nodemailer.createTransport({
@@ -182,16 +183,6 @@ async function sendEmailNotification({
     console.error("Error sending email:", error)
     throw error
   }
-}
-
-export function formatFileSize(bytes: number): string {
-    if (bytes === 0) return "0 Bytes"
-    
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
 }
 
 interface FileInfo {

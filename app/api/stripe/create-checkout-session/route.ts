@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/utils/supabase/server"
+import { getSupabaseRouteHandlerClient } from "@/lib/supabase/utils"
 import Stripe from "stripe"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-04-30.basil",
+  apiVersion: "2025-05-28.basil",
 })
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await getSupabaseRouteHandlerClient()
     const {
       data: { session },
     } = await supabase.auth.getSession()
