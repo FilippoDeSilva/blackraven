@@ -1,0 +1,105 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are building high-quality, secure, and production-grade code for a scalable application using Supabase as the full backend stack.
+
+Use modern, idiomatic, and maintainable code patterns suitable for large codebases and distributed teams. Automatically infer relevant rules based on context — e.g., Supabase features used (auth, RLS, buckets, functions, etc.) and frontend/backend environment.
+
+---
+
+📦 Architecture:
+- Use clean, modular folder structure (e.g., `lib/`, `api/`, `services/`, `hooks/`, `db/`, `types/`).
+- Separate logic into reusable services/modules (e.g., authService, userService).
+- Avoid tight coupling to Supabase client code; abstract where possible.
+- Prefer server-side logic for anything involving elevated privileges.
+
+---
+
+🔐 Authentication (Supabase Auth):
+- Use Supabase’s `auth` APIs idiomatically (signInWithOtp, signInWithOAuth, etc.).
+- Always check `user.email_confirmed_at` before assuming a user is verified.
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` on the client.
+- For SSR (Next.js), use Supabase Auth Helpers or middleware to persist sessions securely.
+- If using OAuth, handle edge cases (incomplete profile, redirect loops).
+
+---
+
+🛂 Authorization (RLS + Policies):
+- Enable **Row Level Security** on all tables.
+- Write explicit `POLICY` rules for all user-facing tables (never rely on implicit access).
+- Use Postgres functions or views for controlled data access where logic is complex.
+- Implement role-based access controls (RBAC) using JWT claims or user metadata.
+
+---
+
+🧠 Supabase Database (Postgres):
+- Model schemas with strong naming, indexes, foreign keys, and check constraints.
+- Use UUIDs for primary keys (e.g., `gen_random_uuid()`).
+- Write SQL migrations or schema snapshots for version control (e.g., Supabase CLI).
+- Use Postgres triggers or functions (RPC) for backend business logic when needed.
+- Avoid logic duplication between SQL and client – keep it DRY.
+
+---
+
+📁 Supabase Storage (Buckets):
+- Use public/private buckets based on access needs.
+- Use signed URLs for controlled access to private files.
+- Validate file type/size on upload.
+- Store metadata (owner ID, timestamps) in a parallel DB table to enable secure queries.
+
+---
+
+⚙️ Edge Functions:
+- Use for business logic requiring elevated permissions or server-side integration (e.g., webhooks, payments).
+- Write in Deno with TypeScript.
+- Validate all input, return consistent JSON responses, and log errors.
+
+---
+
+📈 API Design (REST or RPC):
+- For REST APIs: follow REST conventions, include error codes, and auth guards.
+- For RPC: use Postgres functions for complex queries/mutations that RLS can’t fully express.
+- Avoid exposing raw tables directly to clients unless access is tightly constrained by policies.
+
+---
+
+🎛️ Code Style:
+- Use consistent formatting (Prettier/ESLint).
+- Add type safety (TypeScript preferred).
+- Write JSDoc/type comments only where clarity is required.
+- Use hooks/context in React frontends to encapsulate auth/data access.
+
+---
+
+🧪 Testing:
+- Include integration tests for RLS and edge cases.
+- Mock Supabase client or use test instance for unit tests.
+- Test auth flows, file uploads, error paths, and database policies.
+
+---
+
+🔍 Observability:
+- Include structured logging in edge functions.
+- Track auth events and logins via Supabase Auth hooks or external systems (e.g., PostHog, Sentry).
+- For serious apps, integrate custom telemetry (Datadog, Prometheus) with Supabase events or Webhooks.
+
+---
+
+📦 CI/CD + Environments:
+- Use Supabase CLI for migration/versioning (`supabase db push`, `supabase db diff`).
+- Store secrets using `.env` files for local, and use environment managers (e.g., Vercel, Railway) in production.
+- Use preview environments to test auth rules, RLS, and DB changes before merging to `main`.
+
+---
+
+🧩 General Rule:
+When building any feature, consider:
+1. Where should this logic live (frontend, client-side, edge, database, etc.)?
+2. What roles or users can access this?
+3. Does this rely on storage, auth, or DB access — and what are the implications?
+4. How will this code scale and evolve in a team of multiple devs over months/years?
+
+Only generate code that is safe, extensible, and testable in a real-world production system. Avoid shortcuts unless explicitly requested. If tradeoffs exist, describe them briefly and pick the better one for long-term health.
+
