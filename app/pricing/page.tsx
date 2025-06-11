@@ -127,24 +127,11 @@ export default async function PricingPage() {
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
-        set(name: string, value: string, options: any) {
-          cookieStore.set(name, value, options);
-        },
-        remove(name: string, options: any) {
-          cookieStore.set(name, '', { ...options, maxAge: 0 });
-        },
       },
     }
   );
   
   const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    // redirect to login with returnTo query param
-    cookieStore.set("error", "Authentication required.");
-    cookieStore.set("returnTo", "/account");
-    redirect("/login");
-  }
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-900 dark:text-gray-100">
