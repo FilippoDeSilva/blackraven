@@ -163,7 +163,6 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
   const { user, refetchUser } = useAuthContext()
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [avatarUrlState, setAvatarUrlState] = useState<string | null>(user?.user_metadata?.avatar_url || avatarUrl || "/placeholder-user.jpg")
-  const [avatarError, setAvatarError] = useState(false)
 
   // Load user's notification preferences
   const [userNotificationPlatforms, setUserNotificationPlatforms] = useState<string[]>(["email"])
@@ -648,7 +647,6 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
         console.log("Fetched avatar data:", data);
         if (data.success && data.avatarUrl) {
           setAvatarUrlState(data.avatarUrl);
-          setAvatarError(false); // Reset error if new avatar is set
         }
       })
       .catch(() => {});
@@ -665,9 +663,6 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
     );
   }
 
-  // Debug: log avatar state before rendering
-  console.log("Avatar URL State:", avatarUrlState, "Avatar Error:", avatarError);
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Avatar Display at the top of the dashboard */}
@@ -675,10 +670,9 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
         <div className="flex flex-col items-center mt-8 mb-6">
           <Avatar className="w-32 h-32 border-4 border-rose-500 shadow-lg">
             <AvatarImage
-              src={avatarError ? undefined : avatarUrlState || undefined}
+              src={avatarUrlState || undefined}
               alt={user.user_metadata?.username || user.email || "User"}
               crossOrigin="anonymous"
-              onError={() => setAvatarError(true)}
             />
             <AvatarFallback className="text-4xl">
               {user.user_metadata?.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
@@ -701,14 +695,11 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
                   const data = await res.json();
                   if (data.success && data.avatarUrl) {
                     setAvatarUrlState(data.avatarUrl);
-                    setAvatarError(false);
                   } else if (newAvatarUrl) {
                     setAvatarUrlState(newAvatarUrl);
-                    setAvatarError(false);
                   }
                 } catch {
                   if (newAvatarUrl) setAvatarUrlState(newAvatarUrl);
-                  setAvatarError(false);
                 }
               }
             }}
