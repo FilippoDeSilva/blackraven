@@ -18,8 +18,9 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)"],
-        heading: ["var(--font-space-grotesk)"],
+        sans: ["Inter var", "sans-serif"],
+        heading: ["Space Grotesk", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
         background: "hsl(var(--background))",
@@ -33,8 +34,9 @@ const config: Config = {
           foreground: "hsl(var(--popover-foreground))",
         },
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          dark: '#1A1F36',
+          DEFAULT: '#2D3B55',
+          light: '#4A5568',
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -45,8 +47,8 @@ const config: Config = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          rose: '#E11D48',
+          purple: '#7C3AED',
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
@@ -71,6 +73,15 @@ const config: Config = {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+        },
+        status: {
+          success: '#10B981',
+          warning: '#F59E0B',
+          error: '#DC2626',
+        },
+        surface: {
+          light: '#FFFFFF',
+          dark: '#1E293B',
         },
       },
       borderRadius: {

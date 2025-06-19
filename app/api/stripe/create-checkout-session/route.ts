@@ -19,21 +19,30 @@ export async function POST(request: Request) {
 
     const { plan, billingCycle } = await request.json()
 
+    // Only allow these plans and billing cycles
+    const allowedPlans = ["basic", "pro", "enterprise"] as const;
+    const allowedBillingCycles = ["monthly", "yearly"] as const;
+
+    if (!allowedPlans.includes(plan) || !allowedBillingCycles.includes(billingCycle)) {
+      return NextResponse.json({ error: "Invalid plan or billing cycle" }, { status: 400 })
+    }
+
+    // Type assertion after validation
+    const typedPlan = plan as typeof allowedPlans[number];
+    const typedBillingCycle = billingCycle as typeof allowedBillingCycles[number];
+
     // Get plan details
     const prices = {
       basic: {
         monthly: 999, // $9.99
-        quarterly: 2699, // $26.99
         yearly: 9999, // $99.99
       },
-      premium: {
+      pro: {
         monthly: 1999, // $19.99
-        quarterly: 5399, // $53.99
         yearly: 19999, // $199.99
       },
       enterprise: {
         monthly: 4999, // $49.99
-        quarterly: 13499, // $134.99
         yearly: 49999, // $499.99
       },
     }
@@ -42,11 +51,9 @@ export async function POST(request: Request) {
     const now = new Date()
     const expiresAt = new Date(now)
 
-    if (billingCycle === "monthly") {
+    if (typedBillingCycle === "monthly") {
       expiresAt.setMonth(now.getMonth() + 1)
-    } else if (billingCycle === "quarterly") {
-      expiresAt.setMonth(now.getMonth() + 3)
-    } else if (billingCycle === "yearly") {
+    } else if (typedBillingCycle === "yearly") {
       expiresAt.setFullYear(now.getFullYear() + 1)
     }
 
@@ -58,13 +65,13 @@ export async function POST(request: Request) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `BlackRaven ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan (${billingCycle})`,
-              description: `${billingCycle} subscription to BlackRaven ${plan} plan`,
+              name: `BlackRaven ${typedPlan.charAt(0).toUpperCase() + typedPlan.slice(1)} Plan (${typedBillingCycle})`,
+              description: `${typedBillingCycle} subscription to BlackRaven ${typedPlan} plan`,
             },
-            unit_amount: prices[plan as keyof typeof prices][billingCycle as keyof typeof prices.basic],
+            unit_amount: prices[typedPlan][typedBillingCycle],
             recurring: {
-              interval: billingCycle === "monthly" ? "month" : billingCycle === "quarterly" ? "month" : "year",
-              interval_count: billingCycle === "quarterly" ? 3 : 1,
+              interval: typedBillingCycle === "monthly" ? "month" : "year",
+              interval_count: 1,
             },
           },
           quantity: 1,
@@ -76,8 +83,8 @@ export async function POST(request: Request) {
       customer_email: session.user.email,
       metadata: {
         userId: session.user.id,
-        plan,
-        billingCycle,
+        plan: typedPlan,
+        billingCycle: typedBillingCycle,
         expiresAt: expiresAt.toISOString(),
       },
     })

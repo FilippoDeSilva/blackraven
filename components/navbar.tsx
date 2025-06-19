@@ -33,7 +33,7 @@ export function Navbar() {
     { name: "Features", href: "/features" },
     { name: "Pricing", href: "/pricing" },
     { name: "Contact", href: "/contact" },
-    { name: "Sign In", href: "/login" },
+    // { name: "Sign In", href: "/login" },
   ]
 
   return (
@@ -69,7 +69,7 @@ export function Navbar() {
           {/* <ThemeToggle /> */}
 
           <div className="flex space-x-4">
-            <LandingButton variant="primary" href="/signup" className="rounded-3xl">
+            <LandingButton variant="primary" href="/login" className="rounded-3xl">
               Get Started
             </LandingButton>
           </div>
@@ -118,14 +118,14 @@ export function Navbar() {
                 ))}
               </ul>
 
-              <div className="pt-4 border-t dark:border-gray-800 space-y-3">
+              {/* <div className="pt-4 border-t dark:border-gray-800 space-y-3">
                 <Button
                   asChild
                   className="w-full bg-gradient-to-r from-rose-500 to-purple-500 text-white rounded-full"
                 >
                   <Link href="/signup">Get Started</Link>
                 </Button>
-              </div>
+              </div> */}
             </div>
           </motion.div>
         )}

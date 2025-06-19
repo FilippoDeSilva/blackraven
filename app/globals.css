@@ -4,15 +4,27 @@
 
 @layer base {
   :root {
-    /* Modern, Trustworthy Color Palette */
-    --background: 0 0% 100%;
+    --background: 255 100% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 222 25% 25%; /* #2D3B55 */
+    --primary-dark: 227 32% 16%; /* #1A1F36 */
+    --primary-light: 220 13% 35%; /* #4A5568 */
     --primary-foreground: 210 40% 98%;
+    --accent-rose: 343 81% 51%; /* #E11D48 */
+    --accent-purple: 262 81% 54%; /* #7C3AED */
+    --status-success: 160 84% 38%; /* #10B981 */
+    --status-warning: 42 96% 53%; /* #F59E0B */
+    --status-error: 0 72% 51%; /* #DC2626 */
+    --surface-light: 0 0% 100%;
+    --surface-dark: 217 28% 18%; /* #1E293B */
+    --text-primary-light: 227 32% 16%; /* #1A1F36 */
+    --text-primary-dark: 220 36% 98%; /* #F8FAFC */
+    --text-secondary-light: 220 13% 35%; /* #4A5568 */
+    --text-secondary-dark: 215 20% 65%; /* #94A3B8 */
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -44,6 +56,20 @@
     --sidebar-ring: 221.2 83.2% 53.3%;
   }
 
+  html {
+    font-family: 'Inter var', sans-serif;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -88,10 +114,6 @@
   * {
     @apply border-border;
     @apply transition-colors duration-300;
-  }
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
   
   /* Modern Typography */

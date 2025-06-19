@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { useAuthContext } from "@/components/auth-provider"
-import { ProfileImageUploadModal } from "@/app/dashboard/components/ProfileImageUploadModal"
-import { useState } from "react"
+import ProfileImageUploadModal from "@/app/dashboard/components/ProfileImageUploadModal"
+import { useState, useEffect } from "react"
 import type { User } from "@supabase/supabase-js"
 
 interface UserProfileButtonProps {
@@ -22,9 +22,15 @@ interface UserProfileButtonProps {
 
 export function UserProfileButton({ appearance = "button", className, user: propUser }: UserProfileButtonProps) {
   const router = useRouter()
-  const { user: contextUser, signOut } = useAuthContext()
+  const { user: contextUser, signOut, refetchUser } = useAuthContext()
   const user = propUser || contextUser
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(user?.user_metadata?.avatar_url || "/placeholder-user.jpg")
+  const [avatarError, setAvatarError] = useState(false)
+
+  useEffect(() => {
+    setAvatarUrl(user?.user_metadata?.avatar_url || "/placeholder-user.jpg")
+  }, [user?.user_metadata?.avatar_url])
 
   // SSR-only: no user context, return null or static placeholder
   if (!user) {
@@ -45,7 +51,11 @@ export function UserProfileButton({ appearance = "button", className, user: prop
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className={className} aria-label="User menu">
           <Avatar>
-            <AvatarImage src={user.user_metadata?.avatar_url || "/placeholder-user.jpg"} alt={user.user_metadata?.username || user.email || "User"} />
+            <AvatarImage
+              src={avatarError ? undefined : avatarUrl || undefined}
+              alt={user.user_metadata?.username || user.email || "User"}
+              onError={() => setAvatarError(true)}
+            />
             <AvatarFallback>
               {user.user_metadata?.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
             </AvatarFallback>
@@ -59,7 +69,26 @@ export function UserProfileButton({ appearance = "button", className, user: prop
       </DropdownMenuContent>
       <ProfileImageUploadModal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={async (uploadSuccess, newAvatarUrl) => {
+          setIsUploadModalOpen(false)
+          if (uploadSuccess) {
+            try {
+              const res = await fetch("/api/user-profile", { credentials: "include" });
+              const data = await res.json();
+              if (data.success && data.avatarUrl) {
+                setAvatarUrl(data.avatarUrl)
+                setAvatarError(false)
+              } else if (newAvatarUrl) {
+                setAvatarUrl(newAvatarUrl)
+                setAvatarError(false)
+              }
+            } catch {
+              if (newAvatarUrl) setAvatarUrl(newAvatarUrl)
+              setAvatarError(false)
+            }
+            refetchUser()
+          }
+        }}
       />
     </DropdownMenu>
   )

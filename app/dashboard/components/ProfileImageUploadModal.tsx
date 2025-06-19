@@ -1,10 +1,8 @@
 "use client"
 
-import React, { useState, useRef } from "react"
-import { useFormStatus } from "react-dom";
+import React, { useRef, useState } from "react"
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -13,115 +11,128 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useAuthContext } from "@/components/auth-provider"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { SuccessErrorModal } from "@/app/dashboard/components/SuccessErrorModal"
-import { uploadProfileImage } from "@/lib/actions/user-actions"
+import { Loader2, Camera } from "lucide-react"
 
 interface ProfileImageUploadModalProps {
   isOpen: boolean
-  onClose: () => void
+  onClose: (uploadSuccess: boolean, newAvatarUrl?: string) => void
 }
 
-export function ProfileImageUploadModal({ isOpen, onClose }: ProfileImageUploadModalProps) {
+export default function ProfileImageUploadModal({ isOpen, onClose }: ProfileImageUploadModalProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<{ success: boolean; message: string } | null>(null)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { user, refetchUser } = useAuthContext()
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files ? event.target.files[0] : null
-    setSelectedFile(file)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     if (file) {
+      setSelectedFile(file)
       setPreviewUrl(URL.createObjectURL(file))
-    } else {
-      setPreviewUrl(null)
     }
   }
 
-  const handleUploadAction = async (formData: FormData) => {
-    if (!user) {
-      setUploadStatus({ success: false, message: "User not logged in." });
-      return;
-    }
-
+  const handleUpload = async () => {
     if (!selectedFile) {
-      setUploadStatus({ success: false, message: "No file selected." });
-      setIsLoading(false);
-      return;
+      setUploadStatus({ success: false, message: "No file selected." })
+      return
     }
 
-    setIsLoading(true);
-    setUploadStatus(null);
+    setIsLoading(true)
+    setUploadStatus(null)
 
-    const result = await uploadProfileImage(formData);
+    try {
+      const formData = new FormData()
+      formData.append("file", selectedFile)
 
-    if (result.success) {
-      setUploadStatus({ success: true, message: "Profile image uploaded successfully!" });
-    } else {
-      setUploadStatus({ success: false, message: result.error || "Upload failed." });
+      const res = await fetch("/api/user-profile", {
+        method: "POST",
+        body: formData,
+      })
+
+      const result = await res.json()
+      if (result.success) {
+        setUploadStatus({ success: true, message: "Profile image uploaded successfully!" })
+        onClose(true, result.data)
+      } else {
+        throw new Error(result.error || "Upload failed.")
+      }
+    } catch (error: any) {
+      setUploadStatus({ success: false, message: error.message || "Something went wrong." })
+    } finally {
+      setIsLoading(false)
     }
-    refetchUser(); // Re-fetch user context to get the latest avatar_url
-    handleCloseModal(); // Close modal on success or failure
-  };
+  }
+
+  const handleCircleClick = () => {
+    fileInputRef.current?.click()
+  }
 
   const handleCloseModal = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setIsLoading(false);
-    setUploadStatus(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    onClose();
-  };
+    setSelectedFile(null)
+    setPreviewUrl(null)
+    setIsLoading(false)
+    setUploadStatus(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+    onClose(false)
+  }
 
   return (
     <>
       <AlertDialog open={isOpen} onOpenChange={handleCloseModal}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Upload Profile Image</AlertDialogTitle>
+            <AlertDialogTitle>Update Profile Picture</AlertDialogTitle>
             <AlertDialogDescription>
-              Select an image file to set as your profile picture.
+              Click the circle below to select a profile picture.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <form action={handleUploadAction}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="picture" className="text-right">
-                  Picture
-                </Label>
-                <Input
-                  id="picture"
-                  type="file"
-                  name="file"
-                  className="col-span-3"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  ref={fileInputRef}
+
+          {/* Clickable Circle */}
+          <div className="flex justify-center my-4">
+            <div
+              className="relative w-32 h-32 rounded-full border-2 border-dashed border-gray-300 cursor-pointer hover:border-primary transition"
+              onClick={handleCircleClick}
+            >
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="w-full h-full object-cover rounded-full"
                 />
-              </div>
-              {previewUrl && (
-                <div className="flex justify-center">
-                  <img src={previewUrl} alt="Image Preview" className="w-32 h-32 rounded-full object-cover border" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  <Camera className="w-8 h-8" />
                 </div>
               )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+              />
             </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isLoading} type="button">Cancel</AlertDialogCancel>
-              <AlertDialogAction type="submit" disabled={!selectedFile || isLoading}>
-                {isLoading ? "Uploading..." : "Upload"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </form>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+            <Button onClick={handleUpload} disabled={isLoading || !selectedFile}>
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Uploading...
+                </span>
+              ) : (
+                "Upload"
+              )}
+            </Button>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Success/Error Modal */}
       {uploadStatus && (
         <SuccessErrorModal
           open={!!uploadStatus}
@@ -133,4 +144,4 @@ export function ProfileImageUploadModal({ isOpen, onClose }: ProfileImageUploadM
       )}
     </>
   )
-} 
+}

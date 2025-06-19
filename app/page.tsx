@@ -126,7 +126,7 @@ export default function HomePage() {
             <motion.div variants={fadeIn} className="flex flex-col sm:flex-row justify-center gap-4 mb-12">
               <LandingButton
                 variant="primary"
-                href="/signup"
+                href="/login"
                 className="bg-white/10 text-white hover:bg-white/20"
               >
                 Start Secure Sharing

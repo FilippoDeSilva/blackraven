@@ -49,6 +49,8 @@ import type { User } from "@supabase/supabase-js"
 import { ServerActionResult } from '@/lib/actions/utils'
 import { ThemeSwitcher } from "@/components/theme-toggle"
 import Link from "next/link"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import dynamic from "next/dynamic"
 
 // Import the new refactored components
 import { FileUpload } from "./components/FileUpload"
@@ -106,6 +108,9 @@ const getFileIcon = (fileName: string) => {
 
   return fileTypeIcons.default
 }
+
+const ProfileImageUploadModal = dynamic(() => import("./components/ProfileImageUploadModal"), { ssr: false });
+
 interface DashboardClientProps {
   user: User | null;
   initialScheduledTransfers: any[];
@@ -154,8 +159,10 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [modalMessage, setModalMessage] = useState("")
   const [modalKey, setModalKey] = useState(0)
-
-  const { signOut, updateNotificationPlatforms } = useAuthContext()
+  const { user, refetchUser } = useAuthContext()
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [avatarUrlState, setAvatarUrlState] = useState<string | null>(user?.user_metadata?.avatar_url || avatarUrl || "/placeholder-user.jpg")
+  const [avatarError, setAvatarError] = useState(false)
 
   // Load user's notification preferences
   const [userNotificationPlatforms, setUserNotificationPlatforms] = useState<string[]>(["email"])
@@ -330,7 +337,7 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
   // Save notification preferences
   const saveNotificationPreferences = async () => {
     try {
-      await updateNotificationPlatforms(userNotificationPlatforms)
+      await refetchUser()
       setNotificationSettingsOpen(false)
       toast({
         title: "Preferences saved",
@@ -553,8 +560,8 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
   // Handle logout
   const handleLogout = async () => {
     try {
-      await signOut()
-      // The redirect is handled in the signOut function
+      await refetchUser()
+      // The redirect is handled in the refetchUser function
     } catch (error) {
       console.error("Logout error:", error)
       toast({
@@ -587,7 +594,51 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen flex flex-col">
+      {/* Avatar Display at the top of the dashboard */}
+      {user && (
+        <div className="flex flex-col items-center mt-8 mb-6">
+          <Avatar className="w-32 h-32 border-4 border-rose-500 shadow-lg">
+            <AvatarImage
+              src={avatarError ? undefined : avatarUrlState || undefined}
+              alt={user.user_metadata?.username || user.email || "User"}
+              onError={() => setAvatarError(true)}
+            />
+            <AvatarFallback className="text-4xl">
+              {user.user_metadata?.username?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
+          <Button
+            className="mt-4 px-4 py-2 bg-gradient-to-r from-rose-500 to-purple-500 text-white rounded-lg shadow hover:from-rose-600 hover:to-purple-600 transition font-semibold"
+            onClick={() => setIsProfileModalOpen(true)}
+          >
+            Change Profile Image
+          </Button>
+          {/* Server component modal, rendered via dynamic import for SSR compatibility */}
+          <ProfileImageUploadModal
+            isOpen={isProfileModalOpen}
+            onClose={async (uploadSuccess, newAvatarUrl) => {
+              setIsProfileModalOpen(false);
+              if (uploadSuccess) {
+                try {
+                  const res = await fetch("/api/user-profile", { credentials: "include" });
+                  const data = await res.json();
+                  if (data.success && data.avatarUrl) {
+                    setAvatarUrlState(data.avatarUrl);
+                    setAvatarError(false);
+                  } else if (newAvatarUrl) {
+                    setAvatarUrlState(newAvatarUrl);
+                    setAvatarError(false);
+                  }
+                } catch {
+                  if (newAvatarUrl) setAvatarUrlState(newAvatarUrl);
+                  setAvatarError(false);
+                }
+              }
+            }}
+          />
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-50 w-full bg-white dark:bg-gray-800 border-b shadow-sm dark:border-gray-700">
         <div className="container flex h-14 sm:h-16 items-center justify-between px-2 sm:px-4 md:px-6">

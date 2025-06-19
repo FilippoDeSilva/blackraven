@@ -1,70 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export async function middleware(req: NextRequest) {
-  console.log("[middleware] Incoming request:", req.nextUrl.pathname)
-  const res = NextResponse.next()
+  const { pathname } = req.nextUrl;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            res.cookies.set(name, value, options);
-          });
-        },
+  // Exclude public routes and static assets
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/complete-profile") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/favicon.ico") ||
+    pathname.startsWith("/public") ||
+    pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff|woff2|ttf)$/)
+  ) {
+    return NextResponse.next();
+  }
+
+  // Only protect /dashboard and subroutes (customize as needed)
+  if (pathname.startsWith("/dashboard")) {
+    const cookieStore = await cookies();
+    const cookieAdapter = {
+      getAll: () => cookieStore.getAll().map(({ name, value }) => ({ name, value })),
+      setAll: (cookiesToSet: { name: string; value: string; options?: any }[]) => {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set({ name, value, ...options });
+        });
       },
+      deleteAll: (cookiesToDelete: { name: string; options?: any }[]) => {
+        cookiesToDelete.forEach(({ name, options }) => {
+          cookieStore.delete({ name, ...options });
+        });
+      },
+    };
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: cookieAdapter }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.redirect(new URL("/login", req.url));
     }
-  );
-
-  let user = null
-  try {
-    // Try to refresh the session if it exists
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError) {
-      console.log("[middleware] Session error:", sessionError)
-    } else if (session) {
-      // If session exists, try to refresh it
-      const { error: refreshError } = await supabase.auth.refreshSession()
-      if (refreshError) {
-        console.log("[middleware] Session refresh error:", refreshError)
-      }
+    const { data: profile } = await supabase
+      .from("users")
+      .select("username, subscription_status")
+      .eq("id", user.id)
+      .single();
+    if (!profile?.username || profile.subscription_status !== "active") {
+      return NextResponse.redirect(new URL("/complete-profile", req.url));
     }
-
-    // Get the user after potential refresh
-    const { data } = await supabase.auth.getUser()
-    user = data.user
-    console.log("[middleware] Supabase user:", user)
-  } catch (err) {
-    console.log("[middleware] Error fetching user:", err)
   }
-
-  const protectedPaths = ["/dashboard"]
-  const isProtected = protectedPaths.some((path) => req.nextUrl.pathname.startsWith(path))
-  const isLogin = req.nextUrl.pathname === "/login"
-  console.log("[middleware] isProtected:", isProtected, "isLogin:", isLogin)
-
-  if (isLogin && user) {
-    const redirectTo = req.nextUrl.searchParams.get("redirect") || "/dashboard"
-    console.log("[middleware] Authenticated user on /login, redirecting to:", redirectTo)
-    return NextResponse.redirect(new URL(redirectTo, req.url))
-  }
-
-  if (isProtected && !user) {
-    const redirectUrl = req.nextUrl.clone()
-    redirectUrl.pathname = "/login"
-    redirectUrl.searchParams.set("redirect", req.nextUrl.pathname)
-    console.log("[middleware] Unauthenticated user on protected route, redirecting to:", redirectUrl.toString())
-    return NextResponse.redirect(redirectUrl)
-  }
-
-  console.log("[middleware] No redirect, returning response")
-  return res
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/:path*", "/login"],
-}
+  matcher: ["/dashboard/:path*"],
+};
