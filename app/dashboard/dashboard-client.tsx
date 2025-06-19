@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Clock,
@@ -126,6 +126,7 @@ function isValidEmail(email: string): boolean {
 
 export default function DashboardClient({ user: initialUser, initialScheduledTransfers, createFileTransferAction, avatarUrl }: DashboardClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams();
   const { notifications, markAsRead } = useNotifications()
   const [files, setFiles] = useState<File[]>([])
   const [message, setMessage] = useState("")
@@ -167,10 +168,57 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
   // Load user's notification preferences
   const [userNotificationPlatforms, setUserNotificationPlatforms] = useState<string[]>(["email"])
 
+  const [finalizing, setFinalizing] = useState(false);
+
   useEffect(() => {
     // Default to email if no preferences are set
     setUserNotificationPlatforms(["email"])
   }, [initialUser])
+
+  useEffect(() => {
+    // Check for session_id in the URL (both ?session_id and &session_id)
+    const sessionId = searchParams.get("session_id");
+    console.log("[Stripe Finalize] session_id in URL:", sessionId);
+    if (sessionId) {
+      setFinalizing(true);
+      // Call finalize-user API
+      fetch("/api/stripe/finalize-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+        credentials: "include",
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          console.log("[Stripe Finalize] API response:", data);
+          if (data.success) {
+            // Remove session_id from URL and reload dashboard
+            console.log("[Stripe Finalize] Success, redirecting to /dashboard");
+            router.replace("/dashboard");
+          } else {
+            console.error("[Stripe Finalize] API error:", data.error);
+            toast({
+              title: "Payment Finalization Error",
+              description: data.error || "Failed to finalize payment.",
+              variant: "destructive",
+            });
+            // Remove session_id from URL to prevent infinite loop
+            router.replace("/dashboard");
+          }
+        })
+        .catch((err) => {
+          console.error("[Stripe Finalize] API fetch error:", err);
+          toast({
+            title: "Payment Finalization Error",
+            description: err.message || "Failed to finalize payment.",
+            variant: "destructive",
+          });
+          // Remove session_id from URL to prevent infinite loop
+          router.replace("/dashboard");
+        })
+        .finally(() => setFinalizing(false));
+    }
+  }, [searchParams, router]);
 
   // Fetch scheduled transfers
   useEffect(() => {
@@ -591,6 +639,17 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
       borderColor: "var(--primary)",
       color: "var(--text)",
     },
+  }
+
+  if (finalizing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <span className="text-lg font-semibold">Finalizing your payment and profile...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
