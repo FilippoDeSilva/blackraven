@@ -19,6 +19,10 @@ export async function middleware(req: NextRequest) {
 
   // Only protect /dashboard and subroutes (customize as needed)
   if (pathname.startsWith("/dashboard")) {
+    // Allow access if session_id is present in the query (for Stripe finalization)
+    if (req.nextUrl.searchParams.has("session_id")) {
+      return NextResponse.next();
+    }
     const cookieStore = await cookies();
     const cookieAdapter = {
       getAll: () => cookieStore.getAll().map(({ name, value }) => ({ name, value })),

@@ -9,7 +9,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('[FinalizeUser] Called');
     const { session_id } = await req.json();
+    console.log('[FinalizeUser] session_id:', session_id);
     if (!session_id) {
       return NextResponse.json({ success: false, error: "Missing session_id" }, { status: 400 });
     }
@@ -35,14 +37,18 @@ export async function POST(req: NextRequest) {
       { cookies: cookieAdapter }
     );
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('[FinalizeUser] user:', user);
     if (!user || userError) {
-      return NextResponse.json({ success: false, error: "User not authenticated" }, { status: 401 });
+      console.log('[FinalizeUser] User not authenticated:', userError);
+      return NextResponse.json({ success: false, error: "User not authenticated", debug: { user, userError } }, { status: 401 });
     }
 
     // Fetch Stripe session
     const session = await stripe.checkout.sessions.retrieve(session_id);
+    console.log('[FinalizeUser] Stripe session:', session);
     if (!session || !session.metadata) {
-      return NextResponse.json({ success: false, error: "Invalid Stripe session or missing metadata" }, { status: 400 });
+      console.log('[FinalizeUser] Invalid Stripe session or missing metadata');
+      return NextResponse.json({ success: false, error: "Invalid Stripe session or missing metadata", debug: { session } }, { status: 400 });
     }
     const { userId, plan, billingCycle, expiresAt } = session.metadata as {
       userId: string;
@@ -50,26 +56,39 @@ export async function POST(req: NextRequest) {
       billingCycle: string;
       expiresAt: string;
     };
+    console.log('[FinalizeUser] Stripe metadata:', session.metadata);
     if (userId !== user.id) {
-      return NextResponse.json({ success: false, error: "User mismatch" }, { status: 403 });
+      console.log('[FinalizeUser] User mismatch:', { userId, userIdType: typeof userId, user_id: user.id, user_idType: typeof user.id });
+      return NextResponse.json({ success: false, error: "User mismatch", debug: { userId, user_id: user.id } }, { status: 403 });
     }
+
+    // Upsert payload
+    const upsertPayload = {
+      id: user.id,
+      email: user.email,
+      subscription_status: "active",
+      plan,
+      billing_cycle: billingCycle,
+      subscription_expires_at: expiresAt,
+      updated_at: new Date().toISOString(),
+    };
+    console.log('[FinalizeUser] Upsert payload:', upsertPayload);
 
     // Update users table with plan, billingCycle, subscription_status, expires_at
     const { error: upsertError } = await supabase.from("users").upsert([
-      {
-        id: user.id,
-        subscription_status: "active",
-        plan,
-        billing_cycle: billingCycle,
-        subscription_expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-      },
+      upsertPayload
     ], { onConflict: "id" });
+    console.log('[FinalizeUser] Upsert error:', upsertError);
     if (upsertError) {
-      return NextResponse.json({ success: false, error: upsertError.message }, { status: 500 });
+      // Check for RLS or permission errors
+      if (upsertError.code === '42501' || upsertError.message?.toLowerCase().includes('rls')) {
+        console.log('[FinalizeUser] RLS or permission error:', upsertError);
+      }
+      return NextResponse.json({ success: false, error: upsertError.message, debug: { upsertError, upsertPayload } }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message || "Unexpected error" }, { status: 500 });
+    console.log('[FinalizeUser] Exception:', error);
+    return NextResponse.json({ success: false, error: error.message || "Unexpected error", debug: { error } }, { status: 500 });
   }
 } 

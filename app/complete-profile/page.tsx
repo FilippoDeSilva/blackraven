@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/navbar";
 import Footer from "@/components/footer"
@@ -35,6 +35,18 @@ export default function CompleteProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    // Fetch the current user's avatar_url on mount
+    fetch("/api/user-profile", { credentials: "include" })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.avatarUrl) {
+          setPreviewUrl(data.avatarUrl);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -67,6 +79,14 @@ export default function CompleteProfilePage() {
         const result = await res.json();
         if (!result.success) throw new Error(result.error);
         avatar_url = result.data;
+        // Fetch the latest avatar_url after upload
+        try {
+          const avatarRes = await fetch("/api/user-profile", { credentials: "include" });
+          const avatarData = await avatarRes.json();
+          if (avatarData.success && avatarData.avatarUrl) {
+            setPreviewUrl(avatarData.avatarUrl);
+          }
+        } catch {}
       }
       // 2. Upsert user profile
       const upsertRes = await fetch("/api/user-upsert", {

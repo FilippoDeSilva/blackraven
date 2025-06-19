@@ -641,6 +641,19 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
     },
   }
 
+  useEffect(() => {
+    fetch("/api/user-profile", { credentials: "include" })
+      .then(res => res.json())
+      .then(data => {
+        console.log("Fetched avatar data:", data);
+        if (data.success && data.avatarUrl) {
+          setAvatarUrlState(data.avatarUrl);
+          setAvatarError(false); // Reset error if new avatar is set
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   if (finalizing) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -652,6 +665,9 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
     );
   }
 
+  // Debug: log avatar state before rendering
+  console.log("Avatar URL State:", avatarUrlState, "Avatar Error:", avatarError);
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Avatar Display at the top of the dashboard */}
@@ -661,6 +677,7 @@ export default function DashboardClient({ user: initialUser, initialScheduledTra
             <AvatarImage
               src={avatarError ? undefined : avatarUrlState || undefined}
               alt={user.user_metadata?.username || user.email || "User"}
+              crossOrigin="anonymous"
               onError={() => setAvatarError(true)}
             />
             <AvatarFallback className="text-4xl">
